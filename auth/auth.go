@@ -13,13 +13,14 @@ type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
 }
+
 var SECRET_KEY string = os.Getenv("SECRET_KEY")
 
-func ValidateSession(c * gin.Context) (bool){
+func ValidateSession(c *gin.Context) bool {
 	cookie, err := c.Cookie("token")
 	if err != nil {
 		if err == http.ErrNoCookie {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "session expired, please login again"})
+			c.Redirect(http.StatusTemporaryRedirect, "/login")
 			return false
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while getting cookie"})
@@ -29,7 +30,10 @@ func ValidateSession(c * gin.Context) (bool){
 	token, err := ValidateJWT(cookie)
 	if err != nil {
 		if err == jwt.ErrSignatureInvalid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized, signature invalid"})
+			c.Request.Header.Del("Cookie")
+
+			// Redirect to the login page
+			c.Redirect(http.StatusTemporaryRedirect, "/login")
 			return false
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while validating token"})
@@ -42,7 +46,7 @@ func ValidateSession(c * gin.Context) (bool){
 	return true
 }
 
-func GenerateJWT(userid string) (string ,error, time.Time) {
+func GenerateJWT(userid string) (string, error, time.Time) {
 	// Declare the expiration time of the token
 	// here, we have kept it as 5 minutes
 	expirationTime := time.Now().Add(5 * time.Minute)
@@ -63,8 +67,7 @@ func GenerateJWT(userid string) (string ,error, time.Time) {
 	return tokenString, err, expirationTime
 }
 
-
-func ValidateJWT(token string) (jwt.Token, error){
+func ValidateJWT(token string) (jwt.Token, error) {
 	claims := &Claims{}
 	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(SECRET_KEY), nil
@@ -72,14 +75,14 @@ func ValidateJWT(token string) (jwt.Token, error){
 	return *tkn, err
 }
 
-func RefreshToken(c * gin.Context) (bool,error,time.Time){
+func RefreshToken(c *gin.Context) (bool, error, time.Time) {
 
 	token, err := c.Cookie("token")
 	if err != nil {
 		if err == http.ErrNoCookie {
-			return true,nil,time.Time{}
+			return true, nil, time.Time{}
 		}
-		return true,err,time.Time{}
+		return true, err, time.Time{}
 	}
 
 	claims := &Claims{}
@@ -88,12 +91,12 @@ func RefreshToken(c * gin.Context) (bool,error,time.Time){
 	})
 	if err != nil {
 		if err == jwt.ErrSignatureInvalid {
-			return true,nil,time.Time{}
+			return true, nil, time.Time{}
 		}
-		return false,err,time.Time{}
+		return false, err, time.Time{}
 	}
 	if !tkn.Valid || time.Unix(claims.ExpiresAt, 0).Sub(time.Now()) > 30*time.Second {
-		return true,nil,time.Unix(claims.ExpiresAt, 0)
+		return true, nil, time.Unix(claims.ExpiresAt, 0)
 	}
-	return false,nil,time.Unix(claims.ExpiresAt, 0)
+	return false, nil, time.Unix(claims.ExpiresAt, 0)
 }

@@ -187,3 +187,11 @@ func VerifyPassword(userPassword string, providedPassword string) (bool, string)
 
 	return check, msg
 }
+
+func Logout(c *gin.Context) {
+	// Clear the token from client-side (e.g., deleting cookies)
+	c.Request.Header.Del("Cookie")
+
+	// Redirect to the login page
+	c.Redirect(http.StatusTemporaryRedirect, "/login")
+}

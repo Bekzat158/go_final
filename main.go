@@ -28,6 +28,9 @@ func main() {
 
 	router.POST("/signup", controller.SignUp)
 	router.POST("/login", controller.Login)
+	router.GET("/login", index)
+
+	router.GET("/logout", controller.Logout)
 	router.GET("/todo", controller.Todo)
 
 	router.Run(":4000")
